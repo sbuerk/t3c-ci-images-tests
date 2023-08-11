@@ -49,25 +49,40 @@ RUN apt-get update \
     && a2enmod \
         actions \
         headers \
-# http2 not working with mpm_prefork
-#        http2 \
         rewrite \
         setenvif \
         headers \
-        ssl \
 # add overrideable variable for the vhost document root to the apache2 envvar file
     && { \
         echo ''; \
-        echo ': ${APACHE_VHOST_DOCROOT:=/var/www/html}'; \
-        echo 'export APACHE_VHOST_DOCROOT'; \
+        echo ': ${APACHE_RUN_DOCROOT:=/var/www/html}'; \
+        echo 'export APACHE_RUN_DOCROOT'; \
         echo ''; \
       } | tee -a "${APACHE_CONFDIR}/envvars" \
-# use the vhost docrroot variable for document root in default vhost files
-    && sed -i 's/DocumentRoot.*/DocumentRoot ${APACHE_VHOST_DOCROOT}/g' ${APACHE_CONFDIR}/sites-available/000-default.conf \
-    && sed -i 's/DocumentRoot.*/DocumentRoot ${APACHE_VHOST_DOCROOT}/g' ${APACHE_CONFDIR}/sites-available/default-ssl.conf \
+# add variable based directory \
+    && { \
+# create basic directives retrieved from the original images, except the /var/www/html directory block \
+# see: https://github.com/docker-library/php/blob/ec1608d9809155b2df3e1786628825388fd3ce6c/8.1/bookworm/apache/Dockerfile#L93-L107
+		echo '<FilesMatch \.php$>'; \
+		echo '\tSetHandler application/x-httpd-php'; \
+		echo '</FilesMatch>'; \
+		echo; \
+		echo 'DirectoryIndex disabled'; \
+		echo 'DirectoryIndex index.php index.html'; \
+		echo; \
+# We create a additional directory directive based on the configurable vhost docroot path
+		echo '<Directory ${APACHE_RUN_DOCROOT}>'; \
+		echo '\tOptions -Indexes'; \
+		echo '\tAllowOverride All'; \
+		echo '\tRequire all granted'; \
+		echo '</Directory>'; \
+	  } | tee "$APACHE_CONFDIR/conf-available/docker-php.conf" \
+# Set the document root in default site files to the dynamic APACHE_RUN_DOCROOT value
+    && sed -i 's/DocumentRoot.*/DocumentRoot ${APACHE_RUN_DOCROOT}/g' ${APACHE_CONFDIR}/sites-available/000-default.conf \
+    && sed -i 's/DocumentRoot.*/DocumentRoot ${APACHE_RUN_DOCROOT}/g' ${APACHE_CONFDIR}/sites-available/default-ssl.conf \
 # mitigate "Could not reliably determine the server's fully qualified domain name" \
     && { \
-      echo 'ServerName localhost';
+      echo 'ServerName localhost'; \
     } | tee "/etc/apache2/conf-available/servername.conf" \
     && a2enconf servername \
 # php settings
@@ -85,3 +100,8 @@ RUN apt-get update \
     && locale-gen \
 # apt cleanup
     && rm -rf /var/lib/apt/lists/*
+
+# set multiple env variables in one layer
+ENV LANG=en_US.UTF-8 \
+    LANGUAGE=en_US:en \
+    LC_ALL=en_US.UTF-8
