@@ -1,0 +1,19 @@
+#!/bin/sh
+set -e
+
+: ${APACHE_RUN_SERVERNAME:=localhost}
+: ${APACHE_RUN_USER:=www-data}
+: ${APACHE_RUN_GROUP:=www-data}
+: ${APACHE_RUN_DOCROOT:=/usr/local/apache2/htdocs}
+: ${PHPFPM_HOST:=web}
+: ${PHPFPM_PORT:=9000}
+
+export APACHE_RUN_SERVERNAME
+export APACHE_RUN_USER
+export APACHE_RUN_GROUP
+export APACHE_RUN_DOCROOT
+
+# Apache gets grumpy about PID files pre-existing
+rm -f /usr/local/apache2/logs/httpd.pid
+
+exec httpd -DFOREGROUND "$@"

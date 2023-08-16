@@ -67,7 +67,7 @@ RUN apt-get update \
 		echo '\tSetHandler application/x-httpd-php'; \
 		echo '</FilesMatch>'; \
 		echo; \
-		echo 'DirectoryIndex disabled'; \
+#		echo 'DirectoryIndex disabled'; \
 		echo 'DirectoryIndex index.php index.html'; \
 		echo; \
 # We create a additional directory directive based on the configurable vhost docroot path
